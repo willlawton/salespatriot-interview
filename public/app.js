@@ -357,15 +357,19 @@ async function loadTableRead(s) {
   $('#gate4').innerHTML = `<span class="gi ${cls}">${icon}</span><div><b>4 · Is it worth it?</b><div class="small">${label}. ${esc(t.headline)}</div></div>`;
 
   const winners = t.winners.map((w) => `<tr><td class="mono">${w.cage}${w.mine ? ' <span class="badge mine">your supplier</span>' : ''}${w.approved ? ' <span class="badge cat">approved source</span>' : ''}</td><td class="num">${w.wins}</td><td class="num">${Math.round((100 * w.wins) / t.n)}%</td></tr>`).join('');
-  const history = t.awards.map((a) => `<tr><td>${a.date || '—'}</td><td class="mono">${a.cage}</td><td class="num">${money(a.total)}</td><td class="num">${a.unitPrice != null ? money(a.unitPrice) : '<span class="small">qty unknown</span>'}</td><td class="mono small">${esc(a.sol)}</td></tr>`).join('');
+  const history = t.awards.map((a) => `<tr><td>${a.date || '—'}</td><td class="mono">${a.cage}</td>
+    <td class="num">${a.total != null ? money(a.total) : '<span class="small">not published</span>'}</td>
+    <td class="num">${a.qty != null ? fmt(a.qty) : '<span class="small">?</span>'}</td>
+    <td class="num">${a.unitPrice != null ? money(a.unitPrice) : '<span class="small">—</span>'}</td>
+    <td class="mono small">${esc(a.sol)}</td></tr>`).join('');
 
   $('#tableread').innerHTML = `
     <h3>Who's at the table <span class="heat heat-${t.heat}">${label}</span></h3>
     <p>${esc(t.headline)}</p>
     ${t.n ? `<dl class="grid">
       <dt>Recent awards</dt><dd>${t.n}${t.perMonth ? ` (about ${t.perMonth}/month)` : ''}${t.truncated ? ' <span class="small">first 50 shown</span>' : ''}</dd>
-      <dt>Last award</dt><dd>${money(t.lastAward.total)} to <span class="mono">${t.lastAward.cage}</span> on ${t.lastAward.date}</dd>
-      <dt>Recent unit price</dt><dd>${t.anchorUnitPrice != null ? `${money(t.anchorUnitPrice)} / ${esc(t.ui)} <span class="small">(median of ${t.unitPriceCount} award${t.unitPriceCount === 1 ? '' : 's'} where we know the quantity)</span>` : '<span class="small">Not known: past awards fall outside the RFQ files we hold, so quantity is unknown. Totals are shown below.</span>'}</dd>
+      <dt>Last award</dt><dd>${t.lastAward.total != null ? money(t.lastAward.total) : 'Price not published'}${t.lastAward.qty ? ` for ${fmt(t.lastAward.qty)}` : ''} to <span class="mono">${t.lastAward.cage}</span> on ${t.lastAward.date}</dd>
+      <dt>Recent unit price</dt><dd>${t.anchorUnitPrice != null ? `${money(t.anchorUnitPrice)} / ${esc(t.ui)} <span class="small">(median of ${t.unitPriceCount} award${t.unitPriceCount === 1 ? '' : 's'} where we know the quantity)</span>` : '<span class="small">Not known: no recent award has both a published price and a known quantity.</span>'}</dd>
     </dl>
     <table><thead><tr><th>Winner (CAGE)</th><th class="num">Wins</th><th class="num">Share</th></tr></thead><tbody>${winners}</tbody></table>
     <div class="ev">
@@ -375,7 +379,7 @@ async function loadTableRead(s) {
       <div id="evout" class="small"></div>
     </div>
     <details><summary class="small">Award history (${t.awards.length})</summary>
-      <table><thead><tr><th>Date</th><th>CAGE</th><th class="num">Total</th><th class="num">Unit</th><th>Solicitation</th></tr></thead><tbody>${history}</tbody></table>
+      <table><thead><tr><th>Date</th><th>CAGE</th><th class="num">Total</th><th class="num">Qty</th><th class="num">Unit</th><th>Solicitation</th></tr></thead><tbody>${history}</tbody></table>
     </details>` : ''}
     <p class="small">Source: ${esc(t.source)}. Heat labels are rules of thumb from award counts, not predictions.</p>`;
 
