@@ -14,6 +14,21 @@ node server.mjs          # Node 20+. No npm install, no dependencies.
 
 `OFFLINE=1 node server.mjs` serves whatever is already in `./data` without calling DIBBS.
 
+### Deploy (DigitalOcean droplet)
+
+One long-running process with a disk, so a small VM fits better than serverless. On a fresh
+Ubuntu droplet, as root:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/YOU/REPO/main/deploy/setup.sh
+bash setup.sh https://github.com/YOU/REPO.git
+```
+
+That installs Node 22, runs the app under systemd, and serves it over HTTPS at
+`https://<droplet-ip-with-dashes>.sslip.io` via Caddy (no domain needed). It then checks
+whether DIBBS accepts requests from the droplet's IP. If DIBBS blocks it, the script prints the
+one-line `scp` to upload a locally downloaded `data/` folder instead.
+
 ## The idea: bid/no-bid gates
 
 A bid specialist's triage is a sequence of yes/no questions. The app makes the first three automatic:

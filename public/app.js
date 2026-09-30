@@ -24,7 +24,7 @@ function profileParams() {
 
 // ---------- URL state ----------
 let P = Object.fromEntries(new URLSearchParams(location.search));
-let data = null, seq = 0, fscFilter = '', profileOpen = !getProfile();
+let data = null, seq = 0, fscFilter = '', profileOpen = false;
 
 function setP(patch, { keepPage = false } = {}) {
   P = { ...P, ...patch };
@@ -111,6 +111,10 @@ function renderGates() {
     { k: 'extended', on: P.extended === '1', label: 'Deadline extended', sub: 'second chance', n: f.extended, cls: 'green' },
   ];
   $('#triage').innerHTML = `
+    ${hasProfile ? '' : `<div class="welcome">
+      <div><b>Should I bid on this?</b> RFQ Radar runs every DIBBS solicitation through bid/no-bid gates.
+      Gate 1 needs only the deadline. Gates 2 and 3 need to know who you are: your certifications, suppliers and product classes.</div>
+      <button class="btn primary" id="demo">Load a sample distributor profile</button></div>`}
     <div class="funnel">${steps.map((s, i) => {
       const locked = s.g >= 2 && !hasProfile;
       return `${i ? '<span class="arrow">›</span>' : ''}<button class="step ${gate === s.g ? 'on' : ''} ${locked ? 'locked' : ''}" data-g="${s.g}">
@@ -119,6 +123,12 @@ function renderGates() {
     }).join('')}</div>
     <div class="chips">${chips.map((c, i) => `<button class="chip ${c.on ? 'on' : ''} ${c.cls || ''}" data-i="${i}">
       <span>${c.label}${c.sub ? ` <span class="label-sub">${c.sub}</span>` : ''}</span><span class="n">${fmt(c.n)}</span></button>`).join('')}</div>`;
+  if ($('#demo')) $('#demo').onclick = async () => {
+    const s = await fetch('/api/sample-profile').then((r) => r.json());
+    saveProfile(s);
+    profileOpen = false;
+    setP({ gate: '3' });
+  };
   $('#triage').querySelectorAll('.step').forEach((b) => (b.onclick = () => {
     const g = +b.dataset.g;
     if (g >= 2 && !hasProfile) { profileOpen = true; renderFilters(); $('#pf')?.scrollIntoView({ behavior: 'smooth' }); return; }
