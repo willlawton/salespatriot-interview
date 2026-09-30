@@ -137,6 +137,18 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .gi.no { background: var(--red-soft); color: var(--red); }
 .gi.unk { background: #f3f4f6; color: var(--muted); }
 
+.gi.amber { background: var(--amber-soft); color: var(--amber); }
+.heat { font-size: 11px; text-transform: none; letter-spacing: 0; border-radius: 4px; padding: 1px 6px; margin-left: 6px; font-weight: 600; }
+.heat-crowded { background: var(--red-soft); color: var(--red); }
+.heat-incumbent, .heat-contested { background: var(--amber-soft); color: var(--amber); }
+.heat-thin { background: var(--green-soft); color: var(--green); }
+.heat-unknown { background: #f3f4f6; color: var(--muted); }
+.ev { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 12px 0; background: #fbfcfe; }
+.ev label { display: inline-block; margin: 4px 12px 6px 0; }
+.evin { width: 90px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.evin.short { width: 52px; }
+details summary { cursor: pointer; margin: 8px 0; }
+
 @media (max-width: 900px) {
   .funnel { flex-direction: column; }
   .funnel .arrow { display: none; }

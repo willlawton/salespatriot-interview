@@ -7,7 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sync } from './lib/ingest.mjs';
 import { build } from './lib/store.mjs';
-import { query, detail, sampleProfile } from './lib/query.mjs';
+import { query, detail, sampleProfile, profileFrom } from './lib/query.mjs';
+import { awardsFor, tableRead } from './lib/awards.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = path.join(ROOT, 'data');
@@ -65,6 +66,21 @@ const server = http.createServer((req, res) => {
       if (!state) return json(res, 503, status);
       const d = detail(state, p);
       return d ? json(res, 200, d) : json(res, 404, { error: 'Not found' });
+    }
+    if (url.pathname === '/api/tableread') {
+      if (!state) return json(res, 503, status);
+      const s = state.sols.find((x) => x.sol === p.sol);
+      if (!s) return json(res, 404, { error: 'Not found' });
+      const pr = profileFrom(p);
+      const nsns = [...new Set(s.lines.map((l) => l.nsn.replace(/-/g, '')))].filter((n) => /^\d{13}$/.test(n));
+      Promise.all(nsns.map((n) => awardsFor(n, DATA)))
+        .then((hist) => {
+          const awards = hist.flatMap((h) => h.awards).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          const read = tableRead(awards, { qtyBySol: state.qtyBySol, approved: new Set(s.sources.map((x) => x.cage)), mine: pr.cages });
+          json(res, 200, { ...read, qty: s.qty, ui: s.ui, truncated: hist.some((h) => h.truncated), source: 'DIBBS award search by NSN' });
+        })
+        .catch((e) => json(res, 502, { error: e.message }));
+      return;
     }
     if (url.pathname === '/api/sample-profile') {
       if (!state) return json(res, 503, status);

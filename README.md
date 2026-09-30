@@ -23,8 +23,29 @@ A bid specialist's triage is a sequence of yes/no questions. The app makes the f
 | 1 | **Can I still bid?** | Return-by date | RFQ |
 | 2 | **Am I allowed to?** | Set-aside type + my certifications | RFQ + my profile |
 | 3 | **Can I get the part?** | Approved sources (CAGE) for the NSN + suppliers I buy from, or a product class (FSC) I deal in | RFQ + DLA approved-source file + my profile |
-| 4 | Is it worth it? | Price history, competition, my margin | *Not built yet. See "Next".* |
+| 4 | **Is it worth it? Who's at the table?** | Past awards for the NSN (winners, prices, frequency) + my cost | DIBBS award search, on demand + my input |
 | 5 | Can I deliver in time? | Required delivery, supplier lead time | *Not built yet* |
+
+### Gate 4: reading the table
+
+You can't see competing bids (quotes are sealed), but you can see who has been winning. When you
+open an RFQ, the app pulls that NSN's award history from DIBBS (about 4 months; cached 12 h) and
+reads the table:
+
+- **Heat:** *sticky incumbent* (one company won every recent award), *crowded* (4+ different
+  winners, or nobody above 50%), *contested*, *thin* (one award), or *unknown* (no history).
+- **Winners** with their share, flagged if they're an approved source or one of your suppliers.
+- **Price anchor:** award totals are per contract, so unit price is only known when we also hold
+  that solicitation's RFQ file (quantity). The median of those is the anchor. Otherwise totals only.
+- **Your price check:** enter your supplier cost and markup to see profit if you win, a *rough*
+  expected value (baseline win chance = 1 / (recent winners + you), labeled as a placeholder until
+  calibrated on real outcomes), and warnings:
+  - priced above recent winners → likely to lose;
+  - cost above what DLA paid → this table is priced below your supply chain;
+  - **winner's-curse check:** 30%+ under recent winners → read the PDF for first article, packaging,
+    inspection and spec before quoting. Cheap wins are where adverse selection hides.
+
+The heat labels are rules of thumb from award counts, not predictions, and the UI says so.
 
 The top of the page is a **funnel**: All RFQs → still open → eligible → I can source it. Each step
 shows its count and is clickable. The detail panel shows a **gate checklist** for the selected RFQ:
@@ -67,8 +88,8 @@ Things found while probing DIBBS:
 - On load they're parsed into **lines** keyed by (solicitation, PR), then rolled up to **one row per
   solicitation**. Only 4.6% have more than one line, almost always the same NSN split across purchase
   requests, so showing lines would mostly show duplicates.
-- **In memory, no database.** A month is ~50k lines / ~44k solicitations. A full scan with all
-  facet counts takes a few milliseconds. A database would add an install step (and native-module risk
+- **In memory, no database.** A month is ~50k lines / ~44k solicitations (9 MB of raw files). It
+  loads in under a second, and a full scan with gates and every facet count takes under 100 ms. A database would add an install step (and native-module risk
   on Windows) and buy nothing at this size. If history grew to years, SQLite with FTS would be next.
 
 ## Filters, and why
@@ -93,16 +114,20 @@ newlines mean "any of", so you can paste a list of NSNs you stock. Keyboard: `/`
 
 ## What's deliberately not here
 
-- **Gates 4 and 5.** Nobody can see competing bids (quotes are sealed), and the daily files carry no
-  price. Rather than invent a score from missing data, the checklist marks these "?" and says what's
-  missing.
+- **Gate 5.** Required delivery days are likely in the batch-quote file (unverified) and supplier
+  lead times only the user knows. The checklist marks it "?" and says what's missing.
+- **A calibrated win model.** The EV baseline is deliberately naive. The right model comes from the
+  user's own bid/win/loss history.
 - Accounts (the profile is per browser), deployment, SAM.gov/NECO, PDF parsing.
 
 ## Next
 
-1. **Gate 4: past awards per NSN** (public on DIBBS): who won, at what unit price, how often DLA buys it.
-   That turns "is it worth it?" from a guess into evidence.
-2. **Gate 5:** required delivery days (likely in the `bq` batch-quote file; unverified) + per-supplier
+1. **Show table heat in the list:** prefetch award history for the gate-3 shortlist in the background,
+   so "crowded / incumbent / thin" becomes a sortable column, not just a detail-panel read.
+2. **Keep the daily files forever** so more past awards get a known quantity (true unit prices).
+3. **Offers received per award** from FPDS/USAspending (the literal field size), if DLA's small
+   DIBBS awards are reported there.
+4. **Gate 5:** required delivery days (likely in the `bq` batch-quote file; unverified) + per-supplier
    lead times the user records once.
 3. Learn from behavior: which RFQs the user opens, bids, wins, and loses.
 
@@ -115,6 +140,7 @@ lib/ingest.mjs    download new daily files into ./data
 lib/parse.mjs     fixed-width + CSV parsers, tiny zip reader
 lib/store.mjs     build in-memory solicitations (upsert, rollup, approved sources)
 lib/query.mjs     gates, search, filters, facet counts
+lib/awards.mjs    gate 4: award history per NSN, table read
 lib/labels.mjs    set-aside, FSC and office names
 public/           vanilla JS + CSS frontend
 ```

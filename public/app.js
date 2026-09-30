@@ -308,9 +308,10 @@ async function openDetail(sol) {
       ${gateRow(g.open, '1 · Can I still bid?', `Due ${s.returnBy} (${due.text})${s.extended ? `, extended from ${s.prevReturnBy}` : ''}`)}
       ${gateRow(s.profileSet ? g.eligible : null, '2 · Am I allowed to?', `${saText}.${s.profileSet && !g.eligible ? " Your certifications don't cover it." : ''}`)}
       ${gateRow(s.profileSet ? g.canSource : null, '3 · Can I get the part?', esc(srcText))}
-      ${gateRow(null, '4 · Is it worth it?', `Qty ${fmt(s.qty)} ${esc(s.ui)}. Past award prices not pulled yet.`)}
+      <li id="gate4"><span class="gi unk">…</span><div><b>4 · Is it worth it?</b><div class="small">Checking DIBBS award history…</div></div></li>
       ${gateRow(null, '5 · Can I deliver in time?', `${Math.max(0, days(s.returnBy, s.today))} days left to quote. Supplier lead time is up to you.`)}
     </ul>
+    <div id="tableread"><h3>Who's at the table</h3><p class="small">Loading past awards for this NSN from DIBBS…</p></div>
     <dl class="grid">
       <dt>NSN</dt><dd class="mono">${esc(s.nsnDisplay)}</dd>
       <dt>Total quantity</dt><dd>${fmt(s.qty)} ${esc(s.ui)}${s.lineCount > 1 ? ` across ${s.lineCount} purchase requests` : ''}</dd>
@@ -330,6 +331,74 @@ async function openDetail(sol) {
   $('#drawer').hidden = false;
   $('#scrim').hidden = false;
   $('#drawer .close').onclick = closeDetail;
+  loadTableRead(s);
+}
+
+// ---------- gate 4: who's at the table ----------
+const money = (n) => (n == null ? '—' : `$${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const HEAT = { unknown: ['?', 'unk', 'Unknown table'], incumbent: ['!', 'amber', 'Sticky incumbent'], crowded: ['✕', 'no', 'Crowded table'], contested: ['~', 'amber', 'Contested'], thin: ['✓', 'ok', 'Thin table'] };
+
+async function loadTableRead(s) {
+  const sol = s.sol;
+  let t;
+  try {
+    const r = await fetch(`/api/tableread?${new URLSearchParams({ sol, ...profileParams() })}`);
+    t = await r.json();
+    if (!r.ok) throw new Error(t.error || `HTTP ${r.status}`);
+  } catch (e) {
+    if (P.open !== sol) return;
+    $('#tableread').innerHTML = `<h3>Who's at the table</h3><p class="small">Couldn't load award history: ${esc(e.message)}</p>`;
+    $('#gate4').innerHTML = `<span class="gi unk">?</span><div><b>4 · Is it worth it?</b><div class="small">Award history unavailable.</div></div>`;
+    return;
+  }
+  if (P.open !== sol) return; // user moved on
+  const [icon, cls, label] = HEAT[t.heat];
+  $('#gate4').innerHTML = `<span class="gi ${cls}">${icon}</span><div><b>4 · Is it worth it?</b><div class="small">${label}. ${esc(t.headline)}</div></div>`;
+
+  const winners = t.winners.map((w) => `<tr><td class="mono">${w.cage}${w.mine ? ' <span class="badge mine">your supplier</span>' : ''}${w.approved ? ' <span class="badge cat">approved source</span>' : ''}</td><td class="num">${w.wins}</td><td class="num">${Math.round((100 * w.wins) / t.n)}%</td></tr>`).join('');
+  const history = t.awards.map((a) => `<tr><td>${a.date || '—'}</td><td class="mono">${a.cage}</td><td class="num">${money(a.total)}</td><td class="num">${a.unitPrice != null ? money(a.unitPrice) : '<span class="small">qty unknown</span>'}</td><td class="mono small">${esc(a.sol)}</td></tr>`).join('');
+
+  $('#tableread').innerHTML = `
+    <h3>Who's at the table <span class="heat heat-${t.heat}">${label}</span></h3>
+    <p>${esc(t.headline)}</p>
+    ${t.n ? `<dl class="grid">
+      <dt>Recent awards</dt><dd>${t.n}${t.perMonth ? ` (about ${t.perMonth}/month)` : ''}${t.truncated ? ' <span class="small">first 50 shown</span>' : ''}</dd>
+      <dt>Last award</dt><dd>${money(t.lastAward.total)} to <span class="mono">${t.lastAward.cage}</span> on ${t.lastAward.date}</dd>
+      <dt>Recent unit price</dt><dd>${t.anchorUnitPrice != null ? `${money(t.anchorUnitPrice)} / ${esc(t.ui)} <span class="small">(median of ${t.unitPriceCount} award${t.unitPriceCount === 1 ? '' : 's'} where we know the quantity)</span>` : '<span class="small">Not known: past awards fall outside the RFQ files we hold, so quantity is unknown. Totals are shown below.</span>'}</dd>
+    </dl>
+    <table><thead><tr><th>Winner (CAGE)</th><th class="num">Wins</th><th class="num">Share</th></tr></thead><tbody>${winners}</tbody></table>
+    <div class="ev">
+      <div class="pfl">Your price check <span class="small">(gate 4 + adverse selection)</span></div>
+      <label class="small">My unit cost from supplier: $ <input id="evcost" type="number" min="0" step="0.01" class="evin"></label>
+      <label class="small">Markup: <input id="evmk" type="number" min="0" step="1" value="15" class="evin short">%</label>
+      <div id="evout" class="small"></div>
+    </div>
+    <details><summary class="small">Award history (${t.awards.length})</summary>
+      <table><thead><tr><th>Date</th><th>CAGE</th><th class="num">Total</th><th class="num">Unit</th><th>Solicitation</th></tr></thead><tbody>${history}</tbody></table>
+    </details>` : ''}
+    <p class="small">Source: ${esc(t.source)}. Heat labels are rules of thumb from award counts, not predictions.</p>`;
+
+  const cost = $('#evcost'), mk = $('#evmk');
+  if (!cost) return;
+  const update = () => {
+    const c = parseFloat(cost.value), m = parseFloat(mk.value) || 0;
+    if (!(c > 0)) { $('#evout').innerHTML = 'Enter your cost to see margin, a rough expected value, and warnings.'; return; }
+    const price = c * (1 + m / 100);
+    const profit = (price - c) * t.qty;
+    const a = t.anchorUnitPrice;
+    const warn = [];
+    if (a != null && price > a * 1.05) warn.push(`<div class="callout">Your price (${money(price)}) is ${Math.round((price / a - 1) * 100)}% above the recent winning unit price (${money(a)}). Likely to lose unless you can cut markup.</div>`);
+    if (a != null && c > a) warn.push(`<div class="callout">Your cost is above what DLA recently paid. This table is priced below your supply chain.</div>`);
+    if (a != null && price < a * 0.7) warn.push(`<div class="callout">Winner's-curse check: you'd be ${Math.round((1 - price / a) * 100)}% under recent winners. Cheap wins are where surprises hide: check first article, packaging, inspection and spec in the PDF before quoting.</div>`);
+    if (t.heat === 'incumbent') warn.push(`<div class="callout">Sticky incumbent (${t.winners[0].cage}). They likely know the true cost. Beat them only if you're sure of yours.</div>`);
+    const p = t.baselineWinChance;
+    $('#evout').innerHTML = `Quote ${money(price)}/${esc(t.ui)} → profit if you win ${money(profit)} on ${fmt(t.qty)} ${esc(t.ui)}.
+      ${p != null ? `<br>Rough expected value ≈ ${money(profit * p)} <span class="small">(baseline win chance ${Math.round(p * 100)}% = one of ${t.winners.length} recent winners + you. A placeholder until calibrated on your own wins and losses.)</span>` : ''}
+      ${warn.join('')}`;
+  };
+  cost.oninput = update;
+  mk.oninput = update;
+  update();
 }
 function closeDetail() {
   delete P.open;
