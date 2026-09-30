@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RFQ Radar · DIBBS solicitations</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">◎</span> RFQ Radar <span class="sub">DLA DIBBS solicitations</span></div>
+    <div id="meta" class="meta"></div>
+    <button id="refresh" class="btn ghost" title="Check DIBBS for new daily files">Check for new files</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="searchrow">
+    <div class="search">
+      <input id="q" type="search" autocomplete="off" spellcheck="false"
+        placeholder="Search item name, NSN, solicitation #, part #, CAGE… paste a list to match any">
+      <kbd>/</kbd>
+    </div>
+    <select id="sort" class="select" title="Sort">
+      <option value="new">Newest first</option>
+      <option value="closing">Closing soonest</option>
+      <option value="qty">Largest quantity</option>
+    </select>
+  </div>
+
+  <nav id="triage" class="triage"></nav>
+
+  <main class="layout">
+    <aside id="filters" class="filters"></aside>
+    <section class="results">
+      <div id="summary" class="summary"></div>
+      <div class="tablewrap">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Solicitation</th><th>Item</th><th>NSN</th><th class="num">Qty</th>
+              <th>Return by <span class="gtag">gate 1</span></th><th>Set-aside <span class="gtag">gate 2</span></th>
+              <th>Can I source it? <span class="gtag">gate 3</span></th><th>Posted</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="pager" class="pager"></div>
+    </section>
+  </main>
+
+  <div id="scrim" class="scrim" hidden></div>
+  <aside id="drawer" class="drawer" hidden></aside>
+
+  <script src="/app.js"></script>
+</body>
+</html>
