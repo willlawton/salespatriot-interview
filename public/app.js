@@ -306,7 +306,8 @@ async function openDetail(sol) {
     <h3>Should I bid?</h3>
     <ul class="gates">
       ${gateRow(g.open, '1 · Can I still bid?', `Due ${s.returnBy} (${due.text})${s.extended ? `, extended from ${s.prevReturnBy}` : ''}`)}
-      ${gateRow(s.profileSet ? g.eligible : null, '2 · Am I allowed to?', `${saText}.${s.profileSet && !g.eligible ? " Your certifications don't cover it." : ''}`)}
+      ${gateRow(s.setAside === 'N' ? true : s.profileSet ? g.eligible : null, '2 · Am I allowed to?',
+        `${saText}.${s.setAside !== 'N' && !s.profileSet ? ' Set up your profile to check your certifications.' : s.profileSet && !g.eligible ? " Your certifications don't cover it." : ''}`)}
       ${gateRow(s.profileSet ? g.canSource : null, '3 · Can I get the part?', esc(srcText))}
       <li id="gate4"><span class="gi unk">…</span><div><b>4 · Is it worth it?</b><div class="small">Checking DIBBS award history…</div></div></li>
       ${gateRow(null, '5 · Can I deliver in time?', `${Math.max(0, days(s.returnBy, s.today))} days left to quote. Supplier lead time is up to you.`)}
