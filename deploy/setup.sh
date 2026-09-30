@@ -13,6 +13,8 @@ APP=/opt/rfq-radar
 export DEBIAN_FRONTEND=noninteractive
 
 echo "==> Packages"
+# On first boot (e.g. run from droplet user data) Ubuntu's own updates may hold the apt lock: wait for it.
+echo 'DPkg::Lock::Timeout "600";' >/etc/apt/apt.conf.d/99lock-timeout
 apt-get update -y
 apt-get install -y ca-certificates curl git gnupg debian-keyring debian-archive-keyring apt-transport-https
 
